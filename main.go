@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ArturM94/pokedexcli/internal/pokeapi"
+	"github.com/ArturM94/pokedexcli/internal/pokecache"
 )
 
 func cleanInput(text string) []string {
@@ -25,13 +27,13 @@ func cleanInput(text string) []string {
 	return filtered
 }
 
-func commandExit(config *cliConfig) error {
+func commandExit(cache *pokecache.Cache, config *cliConfig) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(config *cliConfig) error {
+func commandHelp(cache *pokecache.Cache, config *cliConfig) error {
 	fmt.Println()
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
@@ -46,8 +48,8 @@ func commandHelp(config *cliConfig) error {
 	return nil
 }
 
-func commandMap(config *cliConfig) error {
-	locations, err := pokeapi.GetLocationAreas(config.Next)
+func commandMap(cache *pokecache.Cache, config *cliConfig) error {
+	locations, err := pokeapi.GetLocationAreas(cache, config.Next)
 	if err != nil {
 		return fmt.Errorf("error getting location areas: %w", err)
 	}
@@ -62,13 +64,13 @@ func commandMap(config *cliConfig) error {
 	return nil
 }
 
-func commandMapb(config *cliConfig) error {
+func commandMapb(cache *pokecache.Cache, config *cliConfig) error {
 	if config.Previous == nil {
 		fmt.Println("you're on the first page")
 		return nil
 	}
 
-	locations, err := pokeapi.GetLocationAreas(config.Previous)
+	locations, err := pokeapi.GetLocationAreas(cache, config.Previous)
 	if err != nil {
 		return fmt.Errorf("error getting location areas: %w", err)
 	}
@@ -86,7 +88,7 @@ func commandMapb(config *cliConfig) error {
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*cliConfig) error
+	callback    func(*pokecache.Cache, *cliConfig) error
 }
 
 type cliConfig struct {
@@ -121,6 +123,7 @@ func main() {
 	}
 
 	var config cliConfig
+	cache := pokecache.NewCache(5 * time.Second)
 
 	reader := bufio.NewScanner(os.Stdin)
 	for {
@@ -136,7 +139,7 @@ func main() {
 
 		command, exists := commands[commandName]
 		if exists {
-			err := command.callback(&config)
+			err := command.callback(cache, &config)
 			if err != nil {
 				fmt.Println(err)
 			}

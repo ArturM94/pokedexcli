@@ -5,21 +5,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/ArturM94/pokedexcli/internal/pokecache"
 )
 
 const baseURL = "https://pokeapi.co/api/v2"
 
 type GetLocationAreasResponse struct {
-	Count    int    `json:"count"`
+	Count    int     `json:"count"`
 	Next     *string `json:"next"`
-	Previous *string    `json:"previous"`
+	Previous *string `json:"previous"`
 	Results  []struct {
 		Name string `json:"name"`
 		URL  string `json:"url"`
 	} `json:"results"`
 }
 
-func GetLocationAreas(url *string) (*GetLocationAreasResponse, error)  {
+func GetLocationAreas(cache *pokecache.Cache, url *string) (*GetLocationAreasResponse, error) {
 	var fullURL string
 
 	if url != nil {
@@ -28,19 +30,28 @@ func GetLocationAreas(url *string) (*GetLocationAreasResponse, error)  {
 		fullURL = baseURL + "/location-area"
 	}
 
-	res, err := http.Get(fullURL)
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
-	defer res.Body.Close()
+	var data []byte
 
-	if res.StatusCode > 299 {
-		return nil, fmt.Errorf("error getting request: status code is %d", res.StatusCode)
-	}
-	
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response: %w", err)
+	cachedData, ok := cache.Get(fullURL)
+	if ok {
+		data = cachedData
+	} else {
+		res, err := http.Get(fullURL)
+		if err != nil {
+			return nil, fmt.Errorf("error creating request: %w", err)
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode > 299 {
+			return nil, fmt.Errorf("error getting request: status code is %d", res.StatusCode)
+		}
+
+		data, err = io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading response: %w", err)
+		}
+
+		cache.Add(fullURL, data)
 	}
 
 	var response GetLocationAreasResponse
