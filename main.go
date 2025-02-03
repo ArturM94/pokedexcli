@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ArturM94/pokedexcli/internal/pokeapi"
 )
 
 func cleanInput(text string) []string {
@@ -23,13 +25,13 @@ func cleanInput(text string) []string {
 	return filtered
 }
 
-func commandExit() error {
+func commandExit(config *cliConfig) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(config *cliConfig) error {
 	fmt.Println()
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
@@ -44,10 +46,52 @@ func commandHelp() error {
 	return nil
 }
 
+func commandMap(config *cliConfig) error {
+	locations, err := pokeapi.GetLocationAreas(config.Next)
+	if err != nil {
+		return fmt.Errorf("error getting location areas: %w", err)
+	}
+
+	config.Next = locations.Next
+	config.Previous = locations.Previous
+
+	for _, location := range locations.Results {
+		fmt.Println(location.Name)
+	}
+
+	return nil
+}
+
+func commandMapb(config *cliConfig) error {
+	if config.Previous == nil {
+		fmt.Println("you're on the first page")
+		return nil
+	}
+
+	locations, err := pokeapi.GetLocationAreas(config.Previous)
+	if err != nil {
+		return fmt.Errorf("error getting location areas: %w", err)
+	}
+
+	config.Next = locations.Next
+	config.Previous = locations.Previous
+
+	for _, location := range locations.Results {
+		fmt.Println(location.Name)
+	}
+
+	return nil
+}
+
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(*cliConfig) error
+}
+
+type cliConfig struct {
+	Next     *string
+	Previous *string
 }
 
 var commands map[string]cliCommand
@@ -64,7 +108,19 @@ func main() {
 			description: "Exits the Pokedex",
 			callback:    commandExit,
 		},
+		"map": {
+			name:        "map",
+			description: "Paginates over Pokemon maps",
+			callback:    commandMap,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Show previous page of Pokemon maps",
+			callback:    commandMapb,
+		},
 	}
+
+	var config cliConfig
 
 	reader := bufio.NewScanner(os.Stdin)
 	for {
@@ -80,7 +136,7 @@ func main() {
 
 		command, exists := commands[commandName]
 		if exists {
-			err := command.callback()
+			err := command.callback(&config)
 			if err != nil {
 				fmt.Println(err)
 			}
