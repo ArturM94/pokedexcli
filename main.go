@@ -123,9 +123,34 @@ func commandCatch(ctx *commandContext) error {
 
 	if chance < catchRate {
 		fmt.Println(pokemon.Name + " was caught!")
-		ctx.Pokedex[pokemon.Name] = pokemon
+		pokedex[pokemon.Name] = pokemon
 	} else {
 		fmt.Println(pokemon.Name + " escaped!")
+	}
+
+	return nil
+}
+
+func commandInspect(ctx *commandContext) error {
+	pokemon, ok := pokedex[ctx.PokemonName]
+	if !ok {
+		fmt.Println("You has not caught " + ctx.PokemonName + "!")
+
+		return nil
+	}
+
+	fmt.Println("Name:", pokemon.Name)
+	fmt.Println("Height:", pokemon.Height)
+	fmt.Println("Weight: ", pokemon.Weight)
+
+	fmt.Println("Weight:")
+	for _, stat := range pokemon.Stats {
+		fmt.Println("  -"+stat.Stat.Name+":", stat.BaseStat)
+	}
+
+	fmt.Println("Types:")
+	for _, typ := range pokemon.Types {
+		fmt.Println(" - " + typ.Type.Name)
 	}
 
 	return nil
@@ -134,7 +159,6 @@ func commandCatch(ctx *commandContext) error {
 type commandContext struct {
 	Cache        *pokecache.Cache
 	Config       *cliConfig
-	Pokedex      map[string]*pokeapi.GetPokemonResponse
 	LocationName string
 	PokemonName  string
 }
@@ -151,6 +175,7 @@ type cliConfig struct {
 }
 
 var commands map[string]cliCommand
+var pokedex = map[string]*pokeapi.GetPokemonResponse{}
 
 func main() {
 	commands = map[string]cliCommand{
@@ -184,6 +209,11 @@ func main() {
 			description: "Catch a Pokemon",
 			callback:    commandCatch,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "Inspect a Pokemon in your Pokedex",
+			callback:    commandInspect,
+		},
 	}
 
 	var config cliConfig
@@ -203,18 +233,27 @@ func main() {
 
 		var locationName string
 		var pokemonName string
-		pokedex := make(map[string]*pokeapi.GetPokemonResponse)
 
 		command, exists := commands[commandName]
 		if exists {
-			if command.name == "explore" && len(words) == 2 {
-				locationName = words[1]
-			}
-			if command.name == "catch" && len(words) == 2 {
-				pokemonName = words[1]
+			if len(words) == 2 {
+				switch command.name {
+				case "explore":
+					locationName = words[1]
+				case "catch":
+					fallthrough
+				case "inspect":
+					pokemonName = words[1]
+				}
 			}
 
-			ctx := &commandContext{cache, &config, pokedex, locationName, pokemonName}
+			ctx := &commandContext{
+				Cache:        cache,
+				Config:       &config,
+				LocationName: locationName,
+				PokemonName:  pokemonName,
+			}
+
 			err := command.callback(ctx)
 			if err != nil {
 				fmt.Println(err)
