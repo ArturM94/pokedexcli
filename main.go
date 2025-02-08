@@ -124,6 +124,7 @@ func commandCatch(ctx *commandContext) error {
 	if chance < catchRate {
 		fmt.Println(pokemon.Name + " was caught!")
 		pokedex[pokemon.Name] = pokemon
+		fmt.Println("You may now inspect it with the inspect command.")
 	} else {
 		fmt.Println(pokemon.Name + " escaped!")
 	}
@@ -151,6 +152,14 @@ func commandInspect(ctx *commandContext) error {
 	fmt.Println("Types:")
 	for _, typ := range pokemon.Types {
 		fmt.Println(" - " + typ.Type.Name)
+	}
+
+	return nil
+}
+
+func commandPokedex(ctx *commandContext) error {
+	for _, pokemon := range pokedex {
+		fmt.Println(" - " + pokemon.Name)
 	}
 
 	return nil
@@ -213,6 +222,11 @@ func main() {
 			name:        "inspect",
 			description: "Inspect a Pokemon in your Pokedex",
 			callback:    commandInspect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Shows all caught pokemons",
+			callback:    commandPokedex,
 		},
 	}
 
